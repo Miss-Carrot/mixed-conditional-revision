@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mixed Conditionals Revision</title>
+<link rel="icon" type="image/png" sizes="48x48" href="favicon.png">
+<style>
+  :root{
+    --bg:#0f1116;
+    --card:#1a1d27;
+    --border:#2b2f3a;
+    --text:#e8e9ee;
+    --muted:#9aa0ad;
+    --accent:#5b8def;
+    --green:#2fbf71;
+    --green-bg:#12321f;
+    --green-text:#c9f6dc;
+    --red:#e6534a;
+    --red-bg:#3a1616;
+    --red-text:#ffd0cc;
+    --input-bg:#12141b;
+  }
+  html[data-theme="light"]{
+    --bg:#f4f5f8;
+    --card:#ffffff;
+    --border:#dfe2ea;
+    --text:#1b1d24;
+    --muted:#6b7180;
+    --accent:#3763d6;
+    --green:#1f9d5c;
+    --green-bg:#e4f8ec;
+    --green-text:#0f5c33;
+    --red:#d63c33;
+    --red-bg:#fdeceb;
+    --red-text:#8a231c;
+    --input-bg:#f9f9fb;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    padding:24px 16px 60px;
+    transition:background .2s, color .2s;
+  }
+  .wrap{max-width:760px;margin:0 auto;}
+  h1{
+    text-align:center;
+    font-size:1.6rem;
+    margin-bottom:4px;
+  }
+  .sub{
+    text-align:center;
+    color:var(--muted);
+    font-size:0.9rem;
+    margin-bottom:20px;
+  }
+  .top-bar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    position:sticky;
+    top:0;
+    background:var(--bg);
+    padding:10px 0;
+    z-index:5;
+    border-bottom:1px solid var(--border);
+    margin-bottom:16px;
+  }
+  #timer{
+    font-size:1.3rem;
+    font-weight:700;
+    padding:6px 14px;
+    border-radius:8px;
+    background:var(--card);
+    border:1px solid var(--border);
+    min-width:80px;
+    text-align:center;
+  }
+  #timer.warn{color:var(--red);border-color:var(--red);}
+  #score{
+    font-size:1rem;
+    color:var(--muted);
+  }
+  #theme-toggle{
+    background:var(--card);
+    color:var(--text);
+    border:1px solid var(--border);
+    padding:6px 12px;
+    border-radius:8px;
+    font-size:0.85rem;
+    cursor:pointer;
+  }
+  .qitem{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:16px 18px;
+    margin-bottom:12px;
+  }
+  .qnum{
+    color:var(--muted);
+    font-size:0.8rem;
+    margin-bottom:6px;
+  }
+  .sentence{
+    font-size:1.02rem;
+    line-height:2.1;
+  }
+  input.blank{
+    width:180px;
+    padding:5px 8px;
+    border-radius:6px;
+    border:1px solid var(--border);
+    background:var(--input-bg);
+    color:var(--text);
+    font-size:0.95rem;
+    outline:none;
+    text-align:center;
+    margin:0 2px;
+    transition:background .15s, border-color .15s;
+  }
+  input.blank:focus{border-color:var(--accent);}
+  input.blank.correct{
+    background:var(--green-bg);
+    border-color:var(--green);
+    color:var(--green-text);
+  }
+  input.blank.incorrect{
+    background:var(--red-bg);
+    border-color:var(--red);
+    color:var(--red-text);
+  }
+  input.blank:disabled{opacity:0.7;}
+  .reveal{
+    font-size:0.82rem;
+    color:var(--muted);
+    display:none;
+    margin-top:6px;
+  }
+  #finish-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(10,11,15,0.55);
+    align-items:center;
+    justify-content:center;
+    z-index:20;
+  }
+  #finish-box{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:28px 30px;
+    text-align:center;
+    max-width:340px;
+    color:var(--text);
+  }
+  #finish-box h2{margin-top:0;}
+  #finish-box p{color:var(--muted);}
+  button.primary{
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    padding:10px 18px;
+    border-radius:8px;
+    font-size:0.95rem;
+    cursor:pointer;
+    margin-top:10px;
+  }
+  button.primary:hover{opacity:0.9;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Mixed Conditionals Revision</h1>
+  <p class="sub">Put the verbs in brackets into the correct form. You have 3 minutes.</p>
+
+  <div class="top-bar">
+    <div id="timer">03:00</div>
+    <div id="score">0 / 20 correct</div>
+    <button id="theme-toggle" onclick="toggleTheme()">☀ Light</button>
+  </div>
+
+  <div id="quiz"></div>
+</div>
+
+<div id="finish-overlay">
+  <div id="finish-box">
+    <h2>Time's up!</h2>
+    <p id="final-score"></p>
+    <button class="primary" onclick="location.reload()">Try again</button>
+  </div>
+</div>
+
+<script>
+// Each question: sentence split into text segments, with a "blanks" array
+// giving the original verb prompt and the accepted answers for each gap.
+// The question order is reshuffled every time the page loads (see shuffle() below).
+const data = [
+  {
+    parts: ["If I ", " that job five years ago, I ", " much more now."],
+    blanks: [
+      { prompt: "take", answers: ["had taken"] },
+      { prompt: "earn", answers: ["would be earning"] }
+    ]
+  },
+  {
+    parts: ["She ", " for the management position last year if she ", " so afraid of public speaking."],
+    blanks: [
+      { prompt: "apply", answers: ["would have applied", "would've applied"] },
+      { prompt: "not / be", answers: ["weren't", "were not", "wasn't", "was not"] }
+    ]
+  },
+  {
+    parts: ["If we ", " closer to the airport, we ", " our flight this morning."],
+    blanks: [
+      { prompt: "live", answers: ["lived"] },
+      { prompt: "not miss", answers: ["wouldn't have missed", "would not have missed"] }
+    ]
+  },
+  {
+    parts: ["If I ", " better at managing my time, I ", " the report yesterday."],
+    blanks: [
+      { prompt: "be", answers: ["were", "was"] },
+      { prompt: "finish", answers: ["would have finished", "would've finished"] }
+    ]
+  },
+  {
+    parts: ["I ", " taking on this project now if I ", " how stressful it would be."],
+    blanks: [
+      { prompt: "not / regret", answers: ["wouldn't be regretting", "would not be regretting"] },
+      { prompt: "know", answers: ["had known"] }
+    ]
+  },
+  {
+    parts: ["You ", " working until midnight last night if you ", " things off."],
+    blanks: [
+      { prompt: "not / end up", answers: ["wouldn't have ended up", "would not have ended up"] },
+      { prompt: "not / always / put", answers: ["weren't always putting", "were not always putting"] }
+    ]
+  },
+  {
+    parts: ["If we ", " those tickets earlier, we ", " in the front row today."],
+    blanks: [
+      { prompt: "buy", answers: ["had bought"] },
+      { prompt: "sit", answers: ["would be sitting"] }
+    ]
+  },
+  {
+    parts: ["If they ", " so dependent on their car, they ", " a flat closer to the city centre."],
+    blanks: [
+      { prompt: "not / be", answers: ["weren't", "were not", "wasn't", "was not"] },
+      { prompt: "choose", answers: ["would have chosen", "would've chosen"] }
+    ]
+  },
+  {
+    parts: ["Lorraine ", " somewhere else now if she ", " her current boss at that conference."],
+    blanks: [
+      { prompt: "probably / work", answers: ["would probably be working"] },
+      { prompt: "not / meet", answers: ["hadn't met", "had not met"] }
+    ]
+  },
+  {
+    parts: ["If she ", " more careful with money, she ", " into debt last year."],
+    blanks: [
+      { prompt: "be", answers: ["were", "was"] },
+      { prompt: "not / get", answers: ["wouldn't have got", "wouldn't have gotten", "would not have got", "would not have gotten"] }
+    ]
+  }
+];
+
+function shuffle(arr){
+  for (let i = arr.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+shuffle(data);
+
+function normalize(str){
+  let s = str.toLowerCase().trim();
+  s = s.replace(/[.,!?;:"]/g, "");
+  s = s.replace(/\s+/g, " ").trim();
+  return s;
+}
+
+const quizEl = document.getElementById("quiz");
+let correctCount = 0;
+let totalBlanks = 0;
+data.forEach(q => totalBlanks += q.blanks.length);
+let timeLeft = 180;
+let timerId = null;
+let finished = false;
+
+data.forEach((q, qIdx) => {
+  const qDiv = document.createElement("div");
+  qDiv.className = "qitem";
+
+  const qnum = document.createElement("div");
+  qnum.className = "qnum";
+  qnum.textContent = "Sentence " + (qIdx + 1);
+  qDiv.appendChild(qnum);
+
+  const sentence = document.createElement("div");
+  sentence.className = "sentence";
+
+  q.parts.forEach((textPart, i) => {
+    sentence.appendChild(document.createTextNode(textPart));
+    if (i < q.blanks.length){
+      const blank = q.blanks[i];
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "blank";
+      input.placeholder = "(" + blank.prompt + ")";
+      input.autocomplete = "off";
+      input.dataset.checked = "false";
+
+      input.addEventListener("input", () => {
+        if (finished) return;
+        const typed = normalize(input.value);
+        if (typed.length === 0){
+          input.classList.remove("correct", "incorrect");
+          if (input.dataset.checked === "true"){
+            correctCount = Math.max(0, correctCount - 1);
+            updateScore();
+          }
+          input.dataset.checked = "false";
+          return;
+        }
+        const isCorrect = blank.answers.some(a => normalize(a) === typed);
+        if (isCorrect){
+          if (input.dataset.checked !== "true"){
+            correctCount++;
+            updateScore();
+          }
+          input.dataset.checked = "true";
+          input.classList.add("correct");
+          input.classList.remove("incorrect");
+        } else {
+          if (input.dataset.checked === "true"){
+            correctCount = Math.max(0, correctCount - 1);
+            updateScore();
+          }
+          input.dataset.checked = "false";
+          input.classList.add("incorrect");
+          input.classList.remove("correct");
+        }
+      });
+
+      sentence.appendChild(input);
+    }
+  });
+
+  qDiv.appendChild(sentence);
+
+  // Kept in the code for reference, never shown to the learner.
+  const reveal = document.createElement("div");
+  reveal.className = "reveal";
+  reveal.textContent = "Correct: " + q.blanks.map(b => b.answers[0]).join(" / ");
+  qDiv.appendChild(reveal);
+
+  quizEl.appendChild(qDiv);
+});
+
+function updateScore(){
+  document.getElementById("score").textContent = correctCount + " / " + totalBlanks + " correct";
+}
+
+function formatTime(t){
+  const m = Math.floor(t / 60).toString().padStart(2, "0");
+  const s = (t % 60).toString().padStart(2, "0");
+  return m + ":" + s;
+}
+
+function tick(){
+  timeLeft--;
+  const timerEl = document.getElementById("timer");
+  timerEl.textContent = formatTime(Math.max(timeLeft, 0));
+  if (timeLeft <= 10) timerEl.classList.add("warn");
+  if (timeLeft <= 0){
+    clearInterval(timerId);
+    endQuiz();
+  }
+}
+
+function endQuiz(){
+  finished = true;
+  document.querySelectorAll("input.blank").forEach(inp => {
+    inp.disabled = true;
+    if (inp.dataset.checked !== "true"){
+      inp.classList.add("incorrect");
+    }
+  });
+  document.getElementById("final-score").textContent =
+    "You got " + correctCount + " out of " + totalBlanks + " correct.";
+  document.getElementById("finish-overlay").style.display = "flex";
+}
+
+function toggleTheme(){
+  const html = document.documentElement;
+  const btn = document.getElementById("theme-toggle");
+  if (html.getAttribute("data-theme") === "light"){
+    html.removeAttribute("data-theme");
+    btn.textContent = "☀ Light";
+  } else {
+    html.setAttribute("data-theme", "light");
+    btn.textContent = "🌙 Dark";
+  }
+}
+
+timerId = setInterval(tick, 1000);
+</script>
+</body>
+</html>
