@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mixed Conditionals Revision</title>
 <link rel="icon" type="image/png" sizes="48x48" href="favicon.png">
 <style>
@@ -133,13 +134,15 @@
     border-color:var(--red);
     color:var(--red-text);
   }
-  input.blank:disabled{opacity:0.7;}
+  input.blank:disabled{opacity:0.85;}
   .reveal{
-    font-size:0.82rem;
+    font-size:0.85rem;
     color:var(--muted);
     display:none;
     margin-top:6px;
   }
+  .reveal b{color:var(--text);}
+  .check-row{text-align:center;margin-top:20px;}
   #finish-overlay{
     display:none;
     position:fixed;
@@ -148,6 +151,7 @@
     align-items:center;
     justify-content:center;
     z-index:20;
+    padding:16px;
   }
   #finish-box{
     background:var(--card);
@@ -156,21 +160,25 @@
     padding:28px 30px;
     text-align:center;
     max-width:340px;
+    width:100%;
     color:var(--text);
   }
-  #finish-box h2{margin-top:0;}
-  #finish-box p{color:var(--muted);}
+  #finish-emoji{font-size:3rem;line-height:1;margin-bottom:8px;}
+  #finish-box h2{margin:0 0 6px;}
+  #finish-box p{color:var(--muted);margin:6px 0;}
+  #finish-note{font-size:0.85rem;}
   button.primary{
     background:var(--accent);
     color:#fff;
     border:none;
-    padding:10px 18px;
+    padding:10px 22px;
     border-radius:8px;
     font-size:0.95rem;
     cursor:pointer;
     margin-top:10px;
   }
   button.primary:hover{opacity:0.9;}
+  button.primary:disabled{opacity:0.5;cursor:default;}
 </style>
 </head>
 <body>
@@ -180,18 +188,24 @@
 
   <div class="top-bar">
     <div id="timer">05:00</div>
-    <div id="score">0 / 20 correct</div>
-    <button id="theme-toggle" onclick="toggleTheme()">☀ Light</button>
+    <div id="score"></div>
+    <button id="theme-toggle" onclick="toggleTheme()">🌙 Dark</button>
   </div>
 
   <div id="quiz"></div>
+
+  <div class="check-row">
+    <button class="primary" id="check-btn" onclick="checkAnswers()">Check</button>
+  </div>
 </div>
 
 <div id="finish-overlay">
   <div id="finish-box">
-    <h2>Time's up!</h2>
+    <div id="finish-emoji"></div>
+    <h2 id="finish-title"></h2>
     <p id="final-score"></p>
-    <button class="primary" onclick="location.reload()">Try again</button>
+    <p id="finish-note"></p>
+    <button class="primary" onclick="closePopup()">OK</button>
   </div>
 </div>
 
@@ -272,6 +286,31 @@ const data = [
   }
 ];
 
+// Results scale: index = number of correct answers (0-20)
+const scale = [
+  ["😵", "Time to revisit the basics!"],
+  ["🐌", "Keep at it!"],
+  ["🌱", "Progress takes practice!"],
+  ["🐣", "A little more confidence!"],
+  ["🐢", "Don't rush it!"],
+  ["🍀", "You're getting started!"],
+  ["🐝", "Keep building your skills!"],
+  ["🧩", "You're figuring it out!"],
+  ["🐨", "A fair attempt!"],
+  ["🎈", "You're getting there!"],
+  ["🦊", "Good effort!"],
+  ["🌼", "Nice work!"],
+  ["🐬", "You're doing well!"],
+  ["🎨", "Looking good!"],
+  ["🦋", "Well done!"],
+  ["🎯", "Very good!"],
+  ["⚡", "Great performance!"],
+  ["🥳", "Excellent work!"],
+  ["🔥", "Truly impressive!"],
+  ["🏅", "Almost perfect!"],
+  ["👑", "Absolutely nailed it!"]
+];
+
 function shuffle(arr){
   for (let i = arr.length - 1; i > 0; i--){
     const j = Math.floor(Math.random() * (i + 1));
@@ -283,18 +322,20 @@ shuffle(data);
 
 function normalize(str){
   let s = str.toLowerCase().trim();
+  s = s.replace(/[’‘]/g, "'");
   s = s.replace(/[.,!?;:"]/g, "");
   s = s.replace(/\s+/g, " ").trim();
   return s;
 }
 
 const quizEl = document.getElementById("quiz");
-let correctCount = 0;
 let totalBlanks = 0;
 data.forEach(q => totalBlanks += q.blanks.length);
-let timeLeft = 180;
+const TOTAL_SECONDS = 300;
+let timeLeft = TOTAL_SECONDS;
 let timerId = null;
 let finished = false;
+const inputs = [];   // { el, blank }
 
 data.forEach((q, qIdx) => {
   const qDiv = document.createElement("div");
@@ -317,58 +358,23 @@ data.forEach((q, qIdx) => {
       input.className = "blank";
       input.placeholder = "(" + blank.prompt + ")";
       input.autocomplete = "off";
-      input.dataset.checked = "false";
-
-      input.addEventListener("input", () => {
-        if (finished) return;
-        const typed = normalize(input.value);
-        if (typed.length === 0){
-          input.classList.remove("correct", "incorrect");
-          if (input.dataset.checked === "true"){
-            correctCount = Math.max(0, correctCount - 1);
-            updateScore();
-          }
-          input.dataset.checked = "false";
-          return;
-        }
-        const isCorrect = blank.answers.some(a => normalize(a) === typed);
-        if (isCorrect){
-          if (input.dataset.checked !== "true"){
-            correctCount++;
-            updateScore();
-          }
-          input.dataset.checked = "true";
-          input.classList.add("correct");
-          input.classList.remove("incorrect");
-        } else {
-          if (input.dataset.checked === "true"){
-            correctCount = Math.max(0, correctCount - 1);
-            updateScore();
-          }
-          input.dataset.checked = "false";
-          input.classList.add("incorrect");
-          input.classList.remove("correct");
-        }
-      });
-
+      input.autocapitalize = "off";
+      input.spellcheck = false;
       sentence.appendChild(input);
+      inputs.push({ el: input, blank: blank });
     }
   });
 
   qDiv.appendChild(sentence);
 
-  // Kept in the code for reference, never shown to the learner.
+  // Shown only after the results pop-up has been closed.
   const reveal = document.createElement("div");
   reveal.className = "reveal";
-  reveal.textContent = "Correct: " + q.blanks.map(b => b.answers[0]).join(" / ");
+  reveal.innerHTML = "Correct: " + q.blanks.map(b => "<b>" + b.answers[0] + "</b>").join(" / ");
   qDiv.appendChild(reveal);
 
   quizEl.appendChild(qDiv);
 });
-
-function updateScore(){
-  document.getElementById("score").textContent = correctCount + " / " + totalBlanks + " correct";
-}
 
 function formatTime(t){
   const m = Math.floor(t / 60).toString().padStart(2, "0");
@@ -382,22 +388,40 @@ function tick(){
   timerEl.textContent = formatTime(Math.max(timeLeft, 0));
   if (timeLeft <= 10) timerEl.classList.add("warn");
   if (timeLeft <= 0){
-    clearInterval(timerId);
-    endQuiz();
+    checkAnswers(true);
   }
 }
 
-function endQuiz(){
+function checkAnswers(timeUp){
+  if (finished) return;
   finished = true;
-  document.querySelectorAll("input.blank").forEach(inp => {
-    inp.disabled = true;
-    if (inp.dataset.checked !== "true"){
-      inp.classList.add("incorrect");
-    }
+  clearInterval(timerId);
+
+  let correctCount = 0;
+  inputs.forEach(item => {
+    const typed = normalize(item.el.value);
+    const ok = typed.length > 0 && item.blank.answers.some(a => normalize(a) === typed);
+    if (ok) correctCount++;
+    item.el.classList.add(ok ? "correct" : "incorrect");
+    item.el.disabled = true;
   });
+
+  document.getElementById("check-btn").disabled = true;
+  document.getElementById("score").textContent = correctCount + " / " + totalBlanks + " correct";
+
+  const tier = scale[Math.min(correctCount, scale.length - 1)];
+  document.getElementById("finish-emoji").textContent = tier[0];
+  document.getElementById("finish-title").textContent = tier[1];
   document.getElementById("final-score").textContent =
     "You got " + correctCount + " out of " + totalBlanks + " correct.";
+  document.getElementById("finish-note").textContent =
+    timeUp === true ? "Time's up!" : "";
   document.getElementById("finish-overlay").style.display = "flex";
+}
+
+function closePopup(){
+  document.getElementById("finish-overlay").style.display = "none";
+  document.querySelectorAll(".reveal").forEach(r => r.style.display = "block");
 }
 
 function toggleTheme(){
